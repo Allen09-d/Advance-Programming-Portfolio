@@ -1,0 +1,173 @@
+IMPORT tkinter modules
+IMPORT messagebox
+IMPORT requests
+IMPORT PIL image modules
+IMPORT BytesIO
+
+DEFINE CLASS MealApp:
+
+    METHOD __init__(root):
+        SET window title, size, background
+        INITIALIZE lists: current_meals, categories, areas, ingredients
+        CALL create_widgets()
+
+    METHOD create_widgets():
+        CREATE title label
+        
+        CREATE search frame
+        CREATE radio buttons for search type (name, ingredient, category, area)
+        
+        CREATE entry field for search input
+        BIND Enter key to search_meals()
+        
+        CREATE buttons: Search, Random, Clear
+        
+        CREATE browse buttons: Categories, Areas, Ingredients
+        
+        CREATE content frame with two sections:
+            LEFT: results listbox with scrollbar
+            RIGHT: meal details + image + text area
+        
+        CREATE status bar at bottom
+
+    METHOD search_meals():
+        GET query from search entry
+        
+        IF query is empty:
+            SHOW warning message
+            RETURN
+        
+        GET selected search_type
+        
+        IF search_type == "name":
+            SET url = search by name endpoint
+        ELSE IF search_type == "ingredient":
+            SET url = filter by ingredient endpoint
+        ELSE IF search_type == "category":
+            SET url = filter by category endpoint
+        ELSE IF search_type == "area":
+            SET url = filter by area endpoint
+        
+        UPDATE status to "Searching..."
+        
+        TRY:
+            SEND GET request to url
+            PARSE JSON response
+            
+            IF meals exist:
+                STORE meals in current_meals
+                CALL display_results()
+                UPDATE status with number of results
+            ELSE:
+                CLEAR results listbox
+                SHOW "No results" message
+                UPDATE status
+        EXCEPT:
+            SHOW error message
+            UPDATE status to "Error"
+
+    METHOD display_results():
+        CLEAR results listbox
+        FOR each meal in current_meals:
+            INSERT meal name into listbox
+
+    METHOD show_details(event):
+        GET selected index from listbox
+        IF nothing selected:
+            RETURN
+        
+        GET meal from current_meals
+        
+        IF meal does not contain full details:
+            SEND lookup request using meal ID
+            REPLACE meal with full meal data
+        
+        CLEAR details text area
+        
+        DISPLAY meal title, category, area, tags
+        
+        DISPLAY ingredients:
+            FOR i FROM 1 TO 20:
+                GET ingredient and measure
+                IF ingredient exists:
+                    DISPLAY ingredient line
+        
+        DISPLAY instructions
+        
+        IF source link exists:
+            DISPLAY source
+        
+        IF image exists:
+            CALL load_image(image_url)
+
+    METHOD load_image(image_url):
+        TRY:
+            SEND GET request for image
+            OPEN image
+            RESIZE image
+            CONVERT to PhotoImage
+            DISPLAY image in image_label
+        EXCEPT:
+            DISPLAY "Image not available"
+
+    METHOD get_random():
+        SET url = random meal endpoint
+        UPDATE status
+        
+        TRY:
+            SEND GET request
+            STORE meal in current_meals
+            CALL display_results()
+            AUTO-SELECT first result
+            CALL show_details()
+            UPDATE status
+        EXCEPT:
+            SHOW error message
+
+    METHOD browse_categories():
+        SEND request to categories endpoint
+        IF categories exist:
+            STORE categories
+            CALL show_browse_window("Categories", categories, key="strCategory", search_type="category")
+
+    METHOD browse_areas():
+        SEND request to areas endpoint
+        IF areas exist:
+            STORE areas
+            CALL show_browse_window("Areas", areas, key="strArea", search_type="area")
+
+    METHOD browse_ingredients():
+        SEND request to ingredients endpoint
+        STORE first 100 ingredients
+        CALL show_browse_window("Ingredients", ingredients, key="strIngredient", search_type="ingredient")
+
+    METHOD show_browse_window(title, items, key, search_type):
+        CREATE new window
+        DISPLAY listbox of items
+        
+        DEFINE select_item():
+            GET selected item
+            SET search_type radio button
+            INSERT selected item into search entry
+            CLOSE window
+            CALL search_meals()
+        
+        BIND double-click to select_item()
+        CREATE "Select" button to trigger select_item()
+
+    METHOD clear_all():
+        CLEAR search entry
+        CLEAR results listbox
+        CLEAR details text
+        RESET image label
+        RESET current_meals
+        UPDATE status to "Cleared"
+
+END CLASS
+
+MAIN PROGRAM:
+    CREATE Tk window
+    CREATE instance of MealApp
+    START mainloop()
+
+END PROGRAM
